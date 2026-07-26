@@ -8,20 +8,23 @@ Cybersecurity Enthusiast & Software Developer passionate about Object-Oriented P
 
 <div align="center">
 
-<!-- Official HTB Badge -->
-[![Hack The Box Badge](https://www.hackthebox.eu/badge/image/YOUR_HTB_USER_ID)](https://app.hackthebox.com/users/YOUR_HTB_USER_ID)
+<!-- Hack The Box Profile Badge -->
+[![Hack The Box Profile](https://img.shields.io/badge/Hack%20The%20Box-darkgeos-9fef00?style=for-the-badge&logo=hackthebox&logoColor=black)](https://profile.hackthebox.com/profile/019d54e4-5baa-711a-825d-bbbb3ac4ab77)
+[![GitHub Repositories](https://img.shields.io/badge/GitHub-Projects-181717?style=for-the-badge&logo=github)](https://github.com/Gej5yehe?tab=repositories)
 
-<br/>
+<br/><br/>
 
-<!-- Dynamic HTB Stats Card -->
-<a href="https://app.hackthebox.com/users/YOUR_HTB_USER_ID">
-  <img src="https://github-readme-htb.vercel.app/api?id=YOUR_HTB_USER_ID&theme=dark" alt="Hack The Box Stats" />
+<!-- HTB Official Badge -->
+<a href="https://profile.hackthebox.com/profile/019d54e4-5baa-711a-825d-bbbb3ac4ab77" target="_blank">
+  <img src="https://www.hackthebox.eu/badge/image/019d54e4-5baa-711a-825d-bbbb3ac4ab77" alt="Hack The Box Badge" />
 </a>
 
 <br/><br/>
 
-[![HTB Profile](https://img.shields.io/badge/Hack%20The%20Box-Profile-green?style=for-the-badge&logo=hackthebox)](https://app.hackthebox.com/users/YOUR_HTB_USER_ID)
-[![GitHub Repos](https://img.shields.io/badge/GitHub-Projects-181717?style=for-the-badge&logo=github)](https://github.com/Gej5yehe?tab=repositories)
+<!-- Dynamic HTB Stats Card -->
+<a href="https://profile.hackthebox.com/profile/019d54e4-5baa-711a-825d-bbbb3ac4ab77" target="_blank">
+  <img src="https://github-readme-htb.vercel.app/api?id=019d54e4-5baa-711a-825d-bbbb3ac4ab77&theme=dark" alt="Hack The Box Stats" />
+</a>
 
 </div>
 
@@ -29,18 +32,18 @@ Cybersecurity Enthusiast & Software Developer passionate about Object-Oriented P
 
 ## 🛠️ Tech Stack & Skills
 
+- **Cybersecurity & Labs:** Hack The Box (`darkgeos`), Network Security, Vulnerability Assessment, CTF Challenges
 - **Languages:** C++, Java, Python, SQL
-- **Cybersecurity & Labs:** Hack The Box, CTFs, Network Security, System Exploitation
 - **Databases & Tools:** MongoDB, Git, Maven, Linux
 
 ---
 
 ## 📌 Featured Projects
 
-- 🎓 **[OOP Student Management System](https://github.com/Gej5yehe/oop-project)**: Java-based student record manager featuring dual persistence with MongoDB and local text file backup.
+- 🎓 **[OOP Student Management System](https://github.com/Gej5yehe/oop-project)**: Java Object-Oriented application featuring dual persistence with MongoDB and local file backup.
 
 ---
 
 <div align="center">
-  <sub>Built with ❤️ by Gej5yehe</sub>
+  <sub>Check out my full HTB profile at <a href="https://profile.hackthebox.com/profile/019d54e4-5baa-711a-825d-bbbb3ac4ab77">profile.hackthebox.com/profile/darkgeos</a></sub>
 </div>
