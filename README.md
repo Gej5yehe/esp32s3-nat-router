@@ -1,13 +1,17 @@
 # 🛰️ ESP32-S3 NAT Router — LilyGo CC1101 Plus
 
-> **Full setup guide**: Flashing `esp_nat_router` firmware on a **LilyGo T3S3 CC1101 Plus (ESP32-S3)**, with WireGuard VPN, firewall rules, and advanced network configuration.
+> **Full setup**: Flashing `esp_nat_router` firmware on a **LilyGo T3S3 CC1101 Plus (ESP32-S3)**, configured with WireGuard VPN, firewall ACL rules, port forwarding, and DHCP reservations.
+
+<p align="center">
+  <img src="image/esp32S3_ship.jpg" alt="LilyGo CC1101 Plus ESP32-S3 Board" width="600"/>
+</p>
 
 <p align="center">
   <img src="https://img.shields.io/badge/Chip-ESP32--S3-blue?style=for-the-badge&logo=espressif" />
   <img src="https://img.shields.io/badge/Board-LilyGo%20CC1101%20Plus-orange?style=for-the-badge" />
   <img src="https://img.shields.io/badge/Firmware-esp__nat__router-green?style=for-the-badge&logo=github" />
   <img src="https://img.shields.io/badge/VPN-WireGuard-blueviolet?style=for-the-badge&logo=wireguard" />
-  <img src="https://img.shields.io/badge/Firewall-Configured-red?style=for-the-badge&logo=shield" />
+  <img src="https://img.shields.io/badge/Firewall-Configured-red?style=for-the-badge" />
 </p>
 
 ---
@@ -17,12 +21,13 @@
 1. [Hardware Overview](#hardware-overview)
 2. [Prerequisites](#prerequisites)
 3. [Flashing esp_nat_router](#flashing-esp_nat_router)
-4. [Initial Configuration](#initial-configuration)
-5. [Firewall Setup](#firewall-setup)
-6. [WireGuard VPN Configuration](#wireguard-vpn-configuration)
-7. [Network Topology](#network-topology)
-8. [Troubleshooting](#troubleshooting)
-9. [References](#references)
+4. [System Status](#system-status)
+5. [Configuration](#configuration)
+6. [Firewall Setup](#firewall-setup)
+7. [WireGuard VPN](#wireguard-vpn)
+8. [Mappings & Port Forwarding](#mappings--port-forwarding)
+9. [Network Topology](#network-topology)
+10. [Troubleshooting](#troubleshooting)
 
 ---
 
@@ -34,41 +39,25 @@
 | **Chip** | ESP32-S3 (Xtensa LX7 dual-core, 240 MHz) |
 | **Flash** | 16 MB |
 | **PSRAM** | 8 MB (QSPI) |
-| **RF Module** | CC1101 (Sub-GHz transceiver, 315/433/868/915 MHz) |
+| **RF Module** | CC1101 (Sub-GHz 315/433/868/915 MHz) |
 | **USB** | USB-C (native USB, JTAG capable) |
-| **Connectivity** | Wi-Fi 802.11 b/g/n + BLE 5.0 |
-| **I/O** | GPIO, SPI, I2C, UART |
+| **Wi-Fi** | 802.11 b/g/n 2.4 GHz + BLE 5.0 |
 
 ---
 
 ## ⚙️ Prerequisites
 
-### Software Requirements
-
 ```bash
-# Install ESP-IDF (v5.x recommended)
-git clone --recursive https://github.com/espressif/esp-idf.git
-cd esp-idf
-./install.sh esp32s3
-source ./export.sh
-
-# Or use esptool directly
-pip install esptool
-
-# Optional: Install Arduino IDE 2.x with ESP32 board support
-```
-
-### Python & Tools
-
-```bash
+# Install esptool
 pip install esptool pyserial
-```
 
-### Clone esp_nat_router
-
-```bash
+# Clone esp_nat_router firmware
 git clone https://github.com/jonask24/esp_nat_router.git
 cd esp_nat_router
+
+# Install ESP-IDF (v5.x)
+git clone --recursive https://github.com/espressif/esp-idf.git
+cd esp-idf && ./install.sh esp32s3 && source ./export.sh
 ```
 
 ---
@@ -77,251 +66,180 @@ cd esp_nat_router
 
 ### Step 1 — Enter Boot Mode
 
-Hold the **BOOT** button on the LilyGo CC1101 Plus while connecting USB-C to your PC.
-Release BOOT after the device is detected.
+Hold **BOOT** on the LilyGo board while plugging in USB-C. Release after device is detected.
 
 ```bash
-# Verify device is detected
-esptool.py --port COM3 chip_id   # Windows
-esptool.py --port /dev/ttyUSB0 chip_id  # Linux/macOS
+# Verify chip detection
+esptool.py --port COM3 chip_id
+# Expected: Chip is ESP32-S3(revision v0.2)
 ```
 
-Expected output:
-```
-Chip is ESP32-S3(revision v0.2)
-Features: WiFi, BLE
-Crystal is 40MHz
-```
-
-### Step 2 — Erase Flash
+### Step 2 — Erase & Flash
 
 ```bash
+# Erase flash
 esptool.py --chip esp32s3 --port COM3 erase_flash
-```
 
-### Step 3 — Build Firmware
-
-```bash
+# Build firmware
 cd esp_nat_router
 idf.py set-target esp32s3
-idf.py menuconfig   # Optional: adjust settings
 idf.py build
-```
 
-### Step 4 — Flash the Firmware
-
-```bash
-esptool.py --chip esp32s3 \
-  --port COM3 \
-  --baud 921600 \
-  --before default_reset \
-  --after hard_reset \
-  write_flash \
-  -z \
-  --flash_mode dio \
-  --flash_freq 80m \
-  --flash_size 16MB \
+# Flash
+esptool.py --chip esp32s3 --port COM3 --baud 921600 \
+  write_flash -z --flash_mode dio --flash_freq 80m --flash_size 16MB \
   0x0     build/bootloader/bootloader.bin \
   0x8000  build/partition_table/partition-table.bin \
   0x10000 build/esp_nat_router.bin
 ```
 
-### Step 5 — Verify Flash
-
-```bash
-esptool.py --chip esp32s3 --port COM3 flash_id
-```
+> See [`scripts/flash.sh`](scripts/flash.sh) for the automated flash script.
 
 ---
 
-## 🌐 Initial Configuration
+## 📡 System Status
 
-After flashing, the ESP32-S3 boots as a Wi-Fi access point:
+After flashing and connecting the ESP32-S3 to upstream Wi-Fi, the System Status page confirms the device is online:
 
-| Setting | Default Value |
-|---------|--------------|
-| **AP SSID** | `ESP32_NAT_Router` |
-| **AP Password** | `12345678` |
-| **AP IP** | `192.168.4.1` |
-| **Web UI** | `http://192.168.4.1` |
+<p align="center">
+  <img src="image/01_system_status.png.png" alt="ESP32 NAT Router - System Status" width="680"/>
+</p>
 
-### Connect & Configure via Web UI
+| Field | Value |
+|-------|-------|
+| **SSID (AP)** | RouterTCP |
+| **AP IP** | 192.168.4.1 |
+| **Uplink** | Connected (-26 dBm) |
+| **STA IP** | 10.80.110.120 (from upstream router) |
+| **Hostname** | esp32-nat-router |
 
-1. Connect your device to the `ESP32_NAT_Router` Wi-Fi network
-2. Open a browser → `http://192.168.4.1`
-3. Navigate to **Station Configuration**
-4. Enter your upstream Wi-Fi SSID and password
-5. Click **Connect** — the ESP32-S3 will reboot and bridge the connections
+---
 
-### Configure via Serial (UART)
+## ⚙️ Configuration
 
-```bash
-# Open serial monitor at 115200 baud
-idf.py -p COM3 monitor
+The Configuration page sets up the Access Point (AP) and Station (uplink) interfaces:
 
-# Set upstream Wi-Fi
-sta_ssid YourWiFiName
-sta_pass YourWiFiPassword
+<p align="center">
+  <img src="image/04_configuration.png.png" alt="ESP32 NAT Router - Configuration" width="680"/>
+</p>
 
-# Set AP credentials
-ap_ssid MyNATRouter
-ap_pass SecurePassword123!
-```
+<p align="center">
+  <img src="image/configuration(2).png.png" alt="ESP32 NAT Router - Remote Console Config" width="680"/>
+</p>
+
+**Access Point Settings:**
+
+| Setting | Value |
+|---------|-------|
+| SSID | `RouterTCP` |
+| AP IP | `192.168.4.1` |
+| Hostname | `esp32-nat-router` |
+| MAC Address | `AC:A7:04:18:F1:19` |
+| Security | WPA2/WPA3 |
+| NAT | Enabled |
 
 ---
 
 ## 🔥 Firewall Setup
 
-The `esp_nat_router` uses **lwIP** (Lightweight IP stack) with packet filtering hooks. Below are the configured firewall rules applied via the custom `firewall/rules.c` implementation.
+ACL rules configured via the built-in Firewall page at `http://192.168.4.1/firewall`:
 
-### Firewall Philosophy
+<p align="center">
+  <img src="image/03_firewall_rules.png.png" alt="ESP32 NAT Router - Firewall Rules" width="680"/>
+</p>
 
-```
-[Internet / Upstream AP]
-        |
-   [ESP32-S3 STA]  ← Upstream connection
-        |
-   [NAT + Firewall] ← Rules applied here
-        |
-   [ESP32-S3 AP]   ← Downstream client network
-        |
-  [Your Devices]   192.168.4.x
-```
+**Active Rules (Internet → ESP):**
 
-### Active Firewall Rules
+| # | Proto | Source | Dest Port | Action |
+|---|-------|--------|-----------|--------|
+| 0 | TCP | any | 22 | **Deny** — Block SSH from WAN |
+| 1 | UDP | any | 51820 | **Allow** — WireGuard VPN |
+| 2 | TCP | any | 23 | **Deny** — Block Telnet |
 
-See [`firewall/firewall_rules.conf`](firewall/firewall_rules.conf) for full rule set.
-
-**Summary of applied rules:**
-
-| Rule # | Direction | Protocol | Source | Destination | Port | Action |
-|--------|-----------|----------|--------|-------------|------|--------|
-| 1 | INBOUND | ALL | ANY | ANY | ANY | DROP (default) |
-| 2 | OUTBOUND | ALL | 192.168.4.0/24 | ANY | ANY | ACCEPT |
-| 3 | INBOUND | TCP | ANY | ANY | 22 | DROP (block SSH from WAN) |
-| 4 | INBOUND | TCP | ANY | ANY | 23 | DROP (block Telnet) |
-| 5 | INBOUND | UDP | ANY | ANY | 53 | ACCEPT (DNS) |
-| 6 | INBOUND | TCP | ANY | ANY | 80,443 | ACCEPT (HTTP/S) |
-| 7 | INBOUND | UDP | ANY | ANY | 51820 | ACCEPT (WireGuard) |
-| 8 | INBOUND | ICMP | ANY | ANY | - | ACCEPT (ping) |
-| 9 | ESTABLISHED | ALL | ANY | ANY | ANY | ACCEPT (stateful) |
-
-### Applying Firewall Config
-
-```bash
-# Flash the firewall config via web UI or paste into nvs
-# Or apply via serial:
-fw_rule add inbound tcp 0.0.0.0/0 22 drop
-fw_rule add inbound tcp 0.0.0.0/0 23 drop
-fw_rule add inbound udp 0.0.0.0/0 51820 accept
-fw_rule add outbound all 192.168.4.0/24 0 accept
-fw_rule apply
-```
+> Default policy: permissive (explicit deny rules above override). See [`firewall/firewall_rules.conf`](firewall/firewall_rules.conf) for the full documented ruleset.
 
 ---
 
-## 🔐 WireGuard VPN Configuration
+## 🔐 WireGuard VPN
 
-`esp_nat_router` includes WireGuard support via **WireGuard-ESP32** (embedded implementation).
+WireGuard is configured directly on the ESP32-S3 via `http://192.168.4.1/vpn`:
 
-### ESP32-S3 WireGuard Interface
+<p align="center">
+  <img src="image/02_vpn_config.png.png" alt="ESP32 NAT Router - WireGuard VPN Config" width="680"/>
+</p>
 
-See [`vpn/wg0.conf`](vpn/wg0.conf) for the full WireGuard config.
+**Interface Configuration:**
 
-```ini
-[Interface]
-PrivateKey = <ESP32_PRIVATE_KEY>
-Address = 10.0.0.1/24
-ListenPort = 51820
-DNS = 1.1.1.1, 8.8.8.8
+| Setting | Value |
+|---------|-------|
+| Tunnel IP | `10.0.0.1` |
+| Listen Port | `51820` |
+| DNS | `1.1.1.1` |
+| Keepalive | `25 sec` |
+| Kill Switch | On |
+| Route All | No (split tunnel) |
 
-[Peer]
-PublicKey = <PEER_PUBLIC_KEY>
-AllowedIPs = 0.0.0.0/0, ::/0
-Endpoint = <YOUR_VPN_SERVER_IP>:51820
-PersistentKeepalive = 25
-```
-
-### Generate Keys
-
+**Key generation:**
 ```bash
-# Generate ESP32 key pair
-wg genkey | tee esp32_private.key | wg pubkey > esp32_public.key
+# Generate ESP32 private key
+python -c "import os,base64; print(base64.b64encode(os.urandom(32)).decode())"
 
-# Generate peer key pair (for your client device)
-wg genkey | tee peer_private.key | wg pubkey > peer_public.key
-
-# View keys
-cat esp32_private.key
-cat esp32_public.key
+# Or use the setup script:
+bash scripts/setup_wireguard.sh
 ```
 
-### Apply WireGuard Config via Web UI
+> See [`vpn/wg0.conf`](vpn/wg0.conf) for the full WireGuard configuration template.
 
-1. Go to `http://192.168.4.1` → **VPN Settings**
-2. Paste your private key in **WireGuard Private Key**
-3. Add peer public key
-4. Set endpoint and AllowedIPs
-5. Click **Save & Apply**
+---
 
-### Apply via Serial
+## 🔀 Mappings & Port Forwarding
 
-```bash
-wg_privkey <your_esp32_private_key_base64>
-wg_peer_pubkey <peer_public_key_base64>
-wg_endpoint <server_ip>:51820
-wg_allowed_ips 0.0.0.0/0
-wg_keepalive 25
-wg_enable 1
-```
+DHCP reservations and port forwarding configured at `http://192.168.4.1/mappings`:
 
-### Verify WireGuard Status
+<p align="center">
+  <img src="image/05_mappings.png.png" alt="ESP32 NAT Router - Mappings and Port Forwarding" width="680"/>
+</p>
 
-```bash
-# Via serial monitor
-wg_status
+**DHCP Reservations:**
 
-# Expected output:
-# interface: wg0
-#   public key: xxxx...
-#   listening port: 51820
-# peer: xxxx...
-#   endpoint: x.x.x.x:51820
-#   allowed ips: 0.0.0.0/0
-#   latest handshake: X seconds ago
-#   transfer: X MiB received, X MiB sent
-```
+| MAC Address | IP Address | Device |
+|-------------|------------|--------|
+| F4:7B:09:A5:9C:2E | 192.168.4.2 | DESKTOP-0QMM0RP |
+
+**Port Forwarding:**
+
+| Interface | Protocol | Ext. Port | Internal IP | Int. Port |
+|-----------|----------|-----------|-------------|-----------|
+| STA | UDP | 51820 | 192.168.4.1 | 51820 (WireGuard) |
 
 ---
 
 ## 🗺️ Network Topology
 
 ```
-                    ┌─────────────────────────────────────┐
-                    │          INTERNET / WAN              │
-                    └──────────────┬──────────────────────┘
+                    ┌─────────────────────────────┐
+                    │         INTERNET             │
+                    └──────────────┬───────────────┘
                                    │
-                    ┌──────────────▼──────────────────────┐
-                    │       Upstream Wi-Fi Router          │
-                    │       192.168.1.1  (ISP/Home)        │
-                    └──────────────┬──────────────────────┘
-                                   │ Wi-Fi (STA mode)
-                    ┌──────────────▼──────────────────────┐
-                    │     LilyGo CC1101 Plus               │
-                    │     ESP32-S3 NAT Router              │
-                    │  ┌────────────────────────────────┐ │
-                    │  │  STA: 192.168.1.X (DHCP)       │ │
-                    │  │  AP:  192.168.4.1/24           │ │
-                    │  │  WireGuard: 10.0.0.1/24        │ │
-                    │  │  Firewall: lwIP packet filter  │ │
-                    │  └────────────────────────────────┘ │
-                    └──────────────┬──────────────────────┘
-                                   │ Wi-Fi AP (802.11n)
-               ┌───────────────────┼───────────────────┐
-               │                   │                   │
-  ┌────────────▼──┐    ┌───────────▼───┐   ┌──────────▼───┐
-  │   Laptop      │    │   Phone       │   │   IoT Device  │
-  │ 192.168.4.2   │    │ 192.168.4.3   │   │ 192.168.4.4   │
+                    ┌──────────────▼───────────────┐
+                    │     Upstream Router           │
+                    │     (Infinix GT 30 Pro)       │
+                    │     STA → 10.80.110.120       │
+                    └──────────────┬───────────────┘
+                                   │ Wi-Fi STA
+                    ┌──────────────▼───────────────┐
+                    │   LilyGo CC1101 Plus          │
+                    │   ESP32-S3 NAT Router         │
+                    │   AP IP: 192.168.4.1          │
+                    │   WireGuard: 10.0.0.1:51820   │
+                    │   Firewall: ACL rules active  │
+                    └──────────────┬───────────────┘
+                                   │ Wi-Fi AP
+               ┌───────────────────┼───────────────┐
+               │                   │               │
+  ┌────────────▼──┐    ┌───────────▼───┐   ┌──────▼───────┐
+  │ DESKTOP-0QMM  │    │   Phone       │   │  Other Device │
+  │ 192.168.4.2   │    │ 192.168.4.3   │   │ 192.168.4.x   │
   └───────────────┘    └───────────────┘   └───────────────┘
 ```
 
@@ -329,66 +247,42 @@ wg_status
 
 ## 🔧 Troubleshooting
 
-### Device Not Detected in Boot Mode
-
-```bash
-# Check available COM ports (Windows)
+### Device Not Detected
+```powershell
+# Windows — check COM ports
 Get-WmiObject Win32_PnPEntity | Where-Object {$_.Name -like "*COM*"}
-
-# Check USB (Linux)
-lsusb | grep Espressif
-dmesg | tail -20
 ```
 
 ### Flash Fails
-
 ```bash
-# Try lower baud rate
-esptool.py --baud 115200 --port COM3 write_flash ...
-
-# Try with --no-stub flag
-esptool.py --no-stub --chip esp32s3 --port COM3 write_flash ...
+esptool.py --baud 115200 --no-stub --chip esp32s3 --port COM3 write_flash ...
 ```
 
-### Wi-Fi Won't Connect to Upstream
+### Wi-Fi Won't Connect
+- Upstream must be **2.4 GHz** (ESP32-S3 has no 5 GHz support)
+- Check SSID/password at `http://192.168.4.1/config`
 
-- Verify SSID/password in web UI at `http://192.168.4.1`
-- Ensure upstream router is 2.4 GHz (ESP32-S3 does NOT support 5 GHz)
-- Check signal strength — move ESP32-S3 closer to router
-
-### WireGuard Handshake Fails
-
-```bash
-# Check firewall isn't blocking UDP 51820
-# Verify server endpoint is reachable from ESP32's upstream network
-# Confirm public keys match on both ends
-```
-
-### Web UI Not Accessible
-
-```bash
-# Hard reset the device
-# Connect to ESP32_NAT_Router AP
-# Try 192.168.4.1 in browser (not https)
-```
+### WireGuard Not Connecting
+- Verify UDP 51820 is allowed in firewall (Rule #1 ✅)
+- Port forward UDP 51820 → 192.168.4.1 is set (Mappings ✅)
+- Check peer public key matches on both ends
 
 ---
 
 ## 📚 References
 
-- [esp_nat_router GitHub](https://github.com/jonask24/esp_nat_router)
+- [esp_nat_router](https://github.com/jonask24/esp_nat_router)
 - [ESP32-S3 Datasheet](https://www.espressif.com/sites/default/files/documentation/esp32-s3_datasheet_en.pdf)
-- [LilyGo T3S3 Schematic](https://github.com/Xinyuan-LilyGO/LilyGo-LoRa-Series)
+- [LilyGo T3S3 Hardware](https://github.com/Xinyuan-LilyGO/LilyGo-LoRa-Series)
 - [WireGuard Protocol](https://www.wireguard.com/protocol/)
-- [lwIP Documentation](https://www.nongnu.org/lwip/2_0_x/index.html)
-- [esptool.py Docs](https://docs.espressif.com/projects/esptool/en/latest/)
+- [esptool.py](https://docs.espressif.com/projects/esptool/en/latest/)
 
 ---
 
 ## 📄 License
 
-MIT License — feel free to use, modify, and share.
+MIT License — free to use, modify, and share.
 
 ---
 
-<p align="center">Made with ❤️ — ESP32-S3 NAT Router Project by <b>Gej5yehe</b></p>
+<p align="center">Made with ❤️ by <b>Gej5yehe</b> — ESP32-S3 NAT Router Project</p>
